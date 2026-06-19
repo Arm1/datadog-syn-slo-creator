@@ -1,0 +1,44 @@
+{
+  "name": "Template HTTP Test",
+  "type": "api",
+  "subtype": "http",
+  "status": "live",
+  "message": "Notification message: Test failed! Notify the team @slack-alerts",
+  "tags": [
+    "env:production",
+    "managed-by:dotnet-automation"
+  ],
+  "locations": [
+    "aws:eu-west-3"
+  ],
+  "config": {
+    "request": {
+      "url": "https://example.com",
+      "method": "GET",
+      "timeout": 30,
+      "headers": {
+        "User-Agent": "Datadog/Synthetics"
+      }
+    },
+    "assertions": [
+      {
+        "type": "statusCode",
+        "operator": "is",
+        "target": 200
+      },
+      {
+        "type": "responseTime",
+        "operator": "lessThan",
+        "target": 2000
+      }
+    ]
+  },
+  "options": {
+    "tick_every": 60,
+    "min_failure_duration": 0,
+    "min_location_failed": 1,
+    "monitor_options": {
+      "renotify_interval": 0
+    }
+  }
+}

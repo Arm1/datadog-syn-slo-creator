@@ -1,0 +1,30 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache/options directory
+.vs/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/
+
+# Mac OS X
+.DS_Store
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userbg
+*.usertasks
+*.userprefs
+
+# Local secrets & settings
+appsettings.local.json
+appsettings.Development.json
+*.secret.json
+secrets.json

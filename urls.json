@@ -1,0 +1,18 @@
+[
+  {
+    "url": "https://example.com",
+    "name": "Production Home Page Check",
+    "tags": [
+      "tier:1",
+      "component:frontend"
+    ]
+  },
+  {
+    "url": "https://example.com/api/healthz",
+    "name": "Production Core API Health Check",
+    "tags": [
+      "tier:1",
+      "component:backend"
+    ]
+  }
+]
