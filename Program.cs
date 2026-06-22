@@ -16,7 +16,7 @@ if (args.Length == 0)
 }
 
 string command = args[0].ToLowerInvariant();
-if (command != "create-tests" && command != "tests" && command != "create-slo" && command != "slo")
+if (command != "create-tests" && command != "tests" && command != "create-slo" && command != "slo" && command != "get-slo-tests" && command != "slo-tests")
 {
     Console.ForegroundColor = ConsoleColor.Red;
     Console.WriteLine($"❌ ERROR: Unknown command: '{args[0]}'");
@@ -48,6 +48,19 @@ else if (command == "create-slo" || command == "slo")
 {
     return await service.RunCreateSloAsync();
 }
+else if (command == "get-slo-tests" || command == "slo-tests")
+{
+    if (args.Length < 2)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("❌ ERROR: Missing SLO ID argument.");
+        Console.ResetColor();
+        Console.WriteLine("Usage: dotnet run -- get-slo-tests <slo_id>");
+        return 1;
+    }
+    string sloId = args[1];
+    return await service.RunGetSloTestsAsync(sloId);
+}
 
 return 0;
 
@@ -56,11 +69,12 @@ return 0;
 static void PrintUsage()
 {
     Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run -- <command>");
+    Console.WriteLine("  dotnet run -- <command> [arguments]");
     Console.WriteLine();
     Console.WriteLine("Commands:");
-    Console.WriteLine("  create-tests / tests   Create synthetic tests based on urls.json and template.json");
-    Console.WriteLine("  create-slo / slo       Create an SLO using the monitor IDs from the last test creation run");
+    Console.WriteLine("  create-tests / tests           Create synthetic tests based on urls.json and template.json");
+    Console.WriteLine("  create-slo / slo               Create an SLO using the monitor IDs from the last test creation run");
+    Console.WriteLine("  get-slo-tests / slo-tests <id> Get all synthetic tests and their target URLs associated with the SLO");
 }
 
 static IConfigurationRoot? LoadConfig()

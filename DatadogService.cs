@@ -365,6 +365,128 @@ public class DatadogService : IDisposable
         return null;
     }
 
+    public async Task<int> RunGetSloTestsAsync(string sloId)
+    {
+        Console.WriteLine("=================================================");
+        Console.WriteLine($"🔍 Fetching Tests for SLO ID: {sloId}");
+        Console.WriteLine("=================================================\n");
+
+        JsonObject? sloData = null;
+        try
+        {
+            var response = await _httpClient.GetAsync($"/api/v1/slo/{sloId}");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var responseNode = JsonNode.Parse(responseContent)?.AsObject();
+                sloData = responseNode?["data"]?.AsObject();
+            }
+            else
+            {
+                WriteError($"Failed to fetch SLO. Status: {response.StatusCode}");
+                Console.WriteLine($"   Response detail: {responseContent}");
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteError($"Unexpected exception during SLO retrieval: {ex.Message}");
+            return 1;
+        }
+
+        if (sloData == null)
+        {
+            WriteError("SLO data could not be parsed.");
+            return 1;
+        }
+
+        string sloName = sloData["name"]?.ToString() ?? "N/A";
+        string sloDescription = sloData["description"]?.ToString() ?? "N/A";
+        Console.WriteLine($"SLO Name: {sloName}");
+        Console.WriteLine($"Description: {sloDescription}\n");
+
+        var monitorIdsArray = sloData["monitor_ids"]?.AsArray();
+        if (monitorIdsArray == null || monitorIdsArray.Count == 0)
+        {
+            WriteWarning("No monitor IDs are associated with this SLO.");
+            return 0;
+        }
+
+        var monitorIds = new HashSet<long>();
+        foreach (var mIdNode in monitorIdsArray)
+        {
+            if (mIdNode != null && long.TryParse(mIdNode.ToString(), out long mId))
+            {
+                monitorIds.Add(mId);
+            }
+        }
+
+        var monitorToTestMap = new Dictionary<long, JsonObject>();
+        try
+        {
+            var response = await _httpClient.GetAsync("/api/v1/synthetics/tests");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var responseNode = JsonNode.Parse(responseContent)?.AsObject();
+                var testsArray = responseNode?["tests"]?.AsArray();
+                if (testsArray != null)
+                {
+                    foreach (var testNode in testsArray)
+                    {
+                        if (testNode is JsonObject testObj)
+                        {
+                            long? mId = testObj["monitor_id"]?.GetValue<long>();
+                            if (mId.HasValue)
+                            {
+                                monitorToTestMap[mId.Value] = testObj;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                WriteError($"Failed to fetch Synthetic tests list. Status: {response.StatusCode}");
+                Console.WriteLine($"   Response detail: {responseContent}");
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteError($"Unexpected exception during Synthetic tests retrieval: {ex.Message}");
+            return 1;
+        }
+
+        Console.WriteLine("Associated Synthetic Tests & Target URLs:");
+        int matchCount = 0;
+        foreach (var monitorId in monitorIds)
+        {
+            if (monitorToTestMap.TryGetValue(monitorId, out var testObj))
+            {
+                string testName = testObj["name"]?.ToString() ?? "Unnamed Test";
+                string publicId = testObj["public_id"]?.ToString() ?? "N/A";
+                string url = testObj["config"]?["request"]?["url"]?.ToString() ?? "N/A";
+
+                Console.WriteLine($"- Name: {testName} (ID: {publicId}, Monitor ID: {monitorId})");
+                Console.WriteLine($"  URL:  {url}\n");
+                matchCount++;
+            }
+            else
+            {
+                Console.WriteLine($"- Non-Synthetic Monitor (Monitor ID: {monitorId})\n");
+            }
+        }
+
+        Console.WriteLine("=================================================");
+        Console.WriteLine($"🏁 Completed. Displayed {matchCount} Synthetic test(s) of {monitorIds.Count} total monitor(s).");
+        Console.WriteLine("=================================================");
+
+        return 0;
+    }
+
     private async Task<JsonObject?> GetSyntheticTestAsync(string publicId)
     {
         try
