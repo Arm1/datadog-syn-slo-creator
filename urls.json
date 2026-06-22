@@ -1,15 +1,23 @@
 [
   {
-    "url": "https://example.com",
     "name": "Production Home Page Check",
+    "config": {
+      "request": {
+        "url": "https://example.com"
+      }
+    },
     "tags": [
       "tier:1",
       "component:frontend"
     ]
   },
   {
-    "url": "https://example.com/api/healthz",
     "name": "Production Core API Health Check",
+    "config": {
+      "request": {
+        "url": "https://example.com/api/healthz"
+      }
+    },
     "tags": [
       "tier:1",
       "component:backend"

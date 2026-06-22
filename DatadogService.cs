@@ -96,19 +96,25 @@ public class DatadogService : IDisposable
             if (itemNode == null) continue;
 
             var item = itemNode.AsObject();
-            string? url = item["url"]?.ToString();
-            string? name = item["name"]?.ToString();
+            var testNode = templateNode.DeepClone()!.AsObject();
 
-            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(name))
+            // 1. Strip read-only properties
+            StripReadOnlyProperties(testNode);
+
+            // 2. Generic merge override
+            MergeJsonNodes(testNode, item);
+
+            // 3. Extract name and URL for logging and validation
+            string? name = testNode["name"]?.ToString();
+            string? url = testNode["config"]?["request"]?["url"]?.ToString();
+
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url))
             {
-                WriteWarning($"Skipping invalid entry: Name='{name}', URL='{url}'");
+                WriteWarning($"Skipping invalid entry: Name='{name ?? "Unnamed"}', URL='{url ?? "No URL"}'");
                 continue;
             }
 
             Console.WriteLine($"\n⚙️ Processing: '{name}' ({url})...");
-
-            var testNode = templateNode.DeepClone()!.AsObject();
-            PrepareTestPayload(testNode, name, url, item["tags"] as JsonArray);
 
             var result = await PostSyntheticTestAsync(testNode, name);
             if (result != null)
@@ -272,67 +278,47 @@ public class DatadogService : IDisposable
         }
     }
 
-    private void PrepareTestPayload(JsonObject testNode, string name, string url, JsonArray? itemTags)
+    private void StripReadOnlyProperties(JsonObject testNode)
     {
-        // Strip read-only properties
         string[] readOnlyFields = { "public_id", "monitor_id", "creator", "created_at", "modified_at" };
         foreach (var field in readOnlyFields)
         {
             testNode.Remove(field);
         }
+    }
 
-        // Set name
-        testNode["name"] = name;
-
-        // Set URL
-        var configSection = testNode["config"]?.AsObject();
-        if (configSection != null)
+    private void MergeJsonNodes(JsonNode target, JsonNode source)
+    {
+        if (target is JsonObject targetObj && source is JsonObject sourceObj)
         {
-            var requestSection = configSection["request"]?.AsObject();
-            if (requestSection != null)
+            foreach (var property in sourceObj)
             {
-                requestSection["url"] = url;
-            }
-            else
-            {
-                configSection["request"] = new JsonObject
+                string key = property.Key;
+                JsonNode? sourceValue = property.Value;
+                if (sourceValue == null)
                 {
-                    ["url"] = url,
-                    ["method"] = "GET",
-                    ["timeout"] = 30
-                };
-            }
-        }
-        else
-        {
-            testNode["config"] = new JsonObject
-            {
-                ["request"] = new JsonObject
-                {
-                    ["url"] = url,
-                    ["method"] = "GET",
-                    ["timeout"] = 30
+                    targetObj[key] = null;
+                    continue;
                 }
-            };
-        }
 
-        // Merge Tags
-        var combinedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (testNode["tags"] is JsonArray templateTagsArray)
-        {
-            foreach (var tag in templateTagsArray)
-            {
-                if (tag != null) combinedTags.Add(tag.ToString());
+                if (targetObj.ContainsKey(key) && targetObj[key] != null)
+                {
+                    JsonNode? targetValue = targetObj[key];
+                    if (targetValue is JsonObject && sourceValue is JsonObject)
+                    {
+                        MergeJsonNodes(targetValue, sourceValue);
+                    }
+                    else
+                    {
+                        targetObj[key] = sourceValue.DeepClone();
+                    }
+                }
+                else
+                {
+                    targetObj[key] = sourceValue.DeepClone();
+                }
             }
         }
-        if (itemTags != null)
-        {
-            foreach (var tag in itemTags)
-            {
-                if (tag != null) combinedTags.Add(tag.ToString());
-            }
-        }
-        testNode["tags"] = new JsonArray(combinedTags.Select(t => (JsonNode)t).ToArray());
     }
 
     private async Task<CreatedTestInfo?> PostSyntheticTestAsync(JsonObject testPayload, string name)

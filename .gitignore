@@ -24,6 +24,7 @@
 *.userprefs
 
 # Local secrets & settings
+appsettings.json
 appsettings.local.json
 appsettings.Development.json
 *.secret.json
