@@ -54,8 +54,25 @@ public class DatadogService : IDisposable
         const string urlsPath = "urls.json";
         const string cachePath = "created_tests.json";
 
-        var templateNode = LoadJsonFile(templatePath);
-        if (templateNode == null) return 1;
+        string? sourceTestId = _config["Datadog:SourceTestId"];
+        JsonNode? templateNode = null;
+
+        if (!string.IsNullOrWhiteSpace(sourceTestId))
+        {
+            var fetchedNode = await GetSyntheticTestAsync(sourceTestId);
+            if (fetchedNode == null)
+            {
+                WriteError($"Aborting. Could not retrieve source test config for ID '{sourceTestId}'.");
+                return 1;
+            }
+            templateNode = fetchedNode;
+        }
+        else
+        {
+            Console.WriteLine($"ℹ️ No 'Datadog:SourceTestId' found in configuration. Falling back to local template '{templatePath}'.");
+            templateNode = LoadJsonFile(templatePath);
+            if (templateNode == null) return 1;
+        }
 
         var urlsNode = LoadJsonFile(urlsPath);
         if (urlsNode == null) return 1;
@@ -358,6 +375,32 @@ public class DatadogService : IDisposable
         catch (Exception ex)
         {
             WriteError($"Unexpected exception during test creation: {ex.Message}");
+        }
+        return null;
+    }
+
+    private async Task<JsonObject?> GetSyntheticTestAsync(string publicId)
+    {
+        try
+        {
+            Console.WriteLine($"🔍 Fetching base Synthetic Test config for ID '{publicId}'...");
+            var response = await _httpClient.GetAsync($"/api/v1/synthetics/tests/{publicId}");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var testNode = JsonNode.Parse(responseContent)?.AsObject();
+                return testNode;
+            }
+            else
+            {
+                WriteError($"Failed to fetch Synthetic test '{publicId}'. Status: {response.StatusCode}");
+                Console.WriteLine($"   Response detail: {responseContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteError($"Unexpected exception during test retrieval: {ex.Message}");
         }
         return null;
     }

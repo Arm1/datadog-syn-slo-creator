@@ -4,10 +4,10 @@
   "subtype": "http",
   "status": "live",
   "message": "{{#is_alert}}\\n🚨 **ALERTE : Échec du test Synthetic {{test.name}}**\\nLe service ne répond pas correctement.\\n- **URL** : {{#config}}{{#request}}{{url}}{{/request}}{{/config}}\\n\\n📧 *Notification envoyée à :* @john.doe@example.com @slack-alerts\\n{{/is_alert}}\\n\\n{{#is_recovery}}\\n✅ **RÉTABLISSEMENT : {{test.name}} est de nouveau opérationnel**\\nLe service répond à nouveau normalement.\\n{{/is_recovery}}",
-  "monitor_name": "Alert: [Synthetic Check] - HTTP Test Failure",
   "tags": [
     "env:production",
-    "managed-by:dotnet-automation"
+    "managed-by:dotnet-automation",
+    "Team:OFA"
   ],
   "locations": [
     "aws:eu-west-3"
