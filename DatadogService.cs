@@ -55,6 +55,7 @@ public class DatadogService : IDisposable
         const string cachePath = "created_tests.json";
 
         string? sourceTestId = _config["Datadog:SourceTestId"];
+        string? prefix = _config["Datadog:TestNamePrefix"];
         JsonNode? templateNode = null;
 
         if (!string.IsNullOrWhiteSpace(sourceTestId))
@@ -112,6 +113,13 @@ public class DatadogService : IDisposable
             {
                 WriteWarning($"Skipping invalid entry: Name='{name ?? "Unnamed"}', URL='{url ?? "No URL"}'");
                 continue;
+            }
+
+            // 4. Prepend prefix if configured
+            if (!string.IsNullOrWhiteSpace(prefix))
+            {
+                name = prefix + name;
+                testNode["name"] = name;
             }
 
             Console.WriteLine($"\n⚙️ Processing: '{name}' ({url})...");
